@@ -94,7 +94,7 @@ class PasswordManager:
     
     def add_password(self, site_name, username, password):
         # Connect to the database
-        conn = psycopg.connect(dbname = 'passwordmanager',user=db_user, password=db_user, host=db_host, port=db_port)
+        conn = psycopg.connect(dbname = 'passwordmanager',user=db_user, password=db_password, host=db_host, port=db_port)
 
         # Create a cursor to execure queries
         cursor = conn.cursor()
@@ -119,7 +119,7 @@ class PasswordManager:
     
     def retrieve_password(self, site_name):
         # Connect to the database
-        conn = psycopg.connect(dbname='passwordmanager',user=db_user, password=db_user, host=db_host, port=db_port)
+        conn = psycopg.connect(dbname='passwordmanager',user=db_user, password=db_password, host=db_host, port=db_port)
 
         # Create a cursor to execure queries
         cursor = conn.cursor()
