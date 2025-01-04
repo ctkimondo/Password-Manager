@@ -13,6 +13,10 @@ db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 master_password = os.getenv("MASTER_PASSWORD")
 
+# Check if all env variables are set correctly
+if not all([db_host, db_port, db_user, db_password, master_password]):
+    raise ValueError("Some environment variables are missing. Please check the .env file") 
+
 # Create a PasswordManager object
 pm = pmfunctions.PasswordManager(master_password)
 
@@ -20,17 +24,29 @@ try:
     # Connect to the default database
     conn = psycopg.connect(dbname='postgres', user=db_user, password=db_password, host=db_host, port=db_port)
 
+    # Set the conn to autocommit
+    conn.auto_commit = True
+
     # Create a cursor to execute queries
     cursor= conn.cursor()
 
     # Check if the database exists
-    cursor.execute("SELECT 1 FROM pg_database WHERE datname = 'passwordmanager'")
+    cursor.execute("SELECT * FROM pg_database WHERE datname='passwordmanager'")
     exists = cursor.fetchone()
 
     if not exists:
+        # Connect to the default database
+        conn = psycopg.connect(dbname='postgres', user=db_user, password=db_password, host=db_host, port=db_port)
+
+        # Set the conn to autocommit
+        conn.autocommit = True
+
+        # Create a cursor to execute queries
+        cursor = conn.cursor()
+
         # Create a new database
-        cursor.execute('''CREATE DATABASE passwordmanager''')
-        
+        cursor.execute("CREATE DATABASE passwordmanager")
+
         # Confirm the creation of the database
         print("Database created successfully")
 
@@ -38,34 +54,33 @@ try:
         cursor.close()
         conn.close()
 
-        conn.commit()
+    # Connect to the recently created database
+    conn = psycopg.connect(dbname = 'passwordmanager', user=db_user, password=db_password, host=db_host, port=db_port)
 
-        # Connect to the recently created database
-        conn = psycopg.connect(dbname = 'passwordmanager', user=db_user, password=db_password, host=db_host, port=db_port)
+    # Set the autocommit to True
+    conn.autocommit = True
         
-        # Create a cursor to execute queries
-        cursor = conn.cursor()
+    # Create a cursor to execute queries
+    cursor = conn.cursor()
 
-        # Create a table to store the passwords
-        cursor.execute('''CREATE TABLE IF NOT EXISTS passwords(
+    # Create a table to store the passwords
+    cursor.execute('''CREATE TABLE IF NOT EXISTS passwords(
                     id SERIAL PRIMARY KEY,
                     username VARCHAR(255) NOT NULL,
                     password VARCHAR(255) NOT NULL,
                     site_name VARCHAR(255) NOT NULL
                         )''')
         
-        # Confirm the creation of the table
-        print("Table created")
+    # Confirm the creation of the table
+    print("Table created")
 
-        # Close the cursor and the connection to the database
-        cursor.close()
-        conn.close()
-
-        conn.commit()
+    # Close the cursor and the connection to the database
+    cursor.close()
+    conn.close()
 
 # Handle exceptions
 except Exception as e:
-    print("Error: {}", e)
+    print(f"Error: {e}")
 
 # Create a menu
 while (True):
@@ -104,3 +119,6 @@ while (True):
     elif choice == '4':
         print("Exiting the program")
         break
+
+    else:
+        print("Invalid choice. Please try again")

@@ -20,12 +20,12 @@ db_user = os.getenv("DB_USER")
 db_password = os.getenv("DB_PASSWORD")
 
 class PasswordManager:
-    def __init__(self, master_password):
+    def __init__(self, master_password, salt=None):
         # Setting the backend to handle cryptographic operations, defaulting to OpenSSL
         self.backend = default_backend()
         
-        # Generate a random salt
-        self.salt = os.urandom(16)
+        # Use provided salt or generate a new one
+        self.salt = salt or os.urandom(16)
 
         # Generate a key from the master password
         self.encryption_key = self.derive_key(master_password, self.salt)
@@ -54,19 +54,15 @@ class PasswordManager:
         # Create an encryptor object
         encryptor = cipher.encryptor()
 
-        # Pad the plaintext to ensure that it is a multiple of 16 bytes
-        padder = padding.PKCS7(128).padder()
-        padded_data = padder.update(plaintext.encode()) + padder.finalize()
-
         # Encrypt the padded data
-        ciphertext = encryptor.update(padded_data) + encryptor.finalize()
+        ciphertext = encryptor.update(plaintext.encode()) + encryptor.finalize()
 
         # Return the initialization vector and the ciphertext
         return urlsafe_b64encode(iv + ciphertext).decode()
     
     def decrypt(self, encrypted_text):
         # Decode the encoded text
-        decoded_text = urlsafe_b64decode(encrypted_text.encode())
+        decoded_text = urlsafe_b64decode(encrypted_text)
 
         # Extract the iv (first 16 bytes)
         iv = decoded_text[:16]
@@ -80,14 +76,8 @@ class PasswordManager:
         # Create a decryptor object
         decryptor = cipher.decryptor()
 
-        # Decyrpt the ciphertext to retrieve the padded plaintext
-        padded_plaintext = decryptor.update(ciphertext) + decryptor.finalize()
-
-        # Initialze an unpadder to remove the padding
-        unpadder = padding.PKCS7(128).unpadder()
-
         # Unpad the plaintext
-        plaintext = unpadder.update(padded_plaintext) + unpadder.finalize()
+        plaintext = decryptor.update(ciphertext) + decryptor.finalize()
 
         # Decode the plaintext to a string and return it
         return plaintext.decode()
@@ -96,6 +86,9 @@ class PasswordManager:
         # Connect to the database
         conn = psycopg.connect(dbname = 'passwordmanager',user=db_user, password=db_password, host=db_host, port=db_port)
 
+        # Set the autocommit to True
+        conn.autocommit = True
+
         # Create a cursor to execure queries
         cursor = conn.cursor()
 
@@ -103,10 +96,10 @@ class PasswordManager:
         encrypted_password = self.encrypt(password)
 
         # Insert the password into the table while using parameterized queries to prevent SQL injections
-        query = '''INSERT INTO passwords (username, password, site_name)
-                VALUES (%s, %s, %s)'''
-        data = (username, encrypted_password, site_name)
-        cursor.execute(query, data)
+        query = '''INSERT INTO passwords (username,password,site_name)
+                VALUES (%s,%s,%s)'''
+        data = (username,encrypted_password, site_name)
+        cursor.execute(query,data)
 
         # Confirm the insertion of the password
         print("Password added successfully")
@@ -115,20 +108,21 @@ class PasswordManager:
         cursor.close()
         conn.close()
 
-        conn.commit()
     
     def retrieve_password(self, site_name):
         # Connect to the database
         conn = psycopg.connect(dbname='passwordmanager',user=db_user, password=db_password, host=db_host, port=db_port)
 
+        # Set the autocommit to True
+        conn.autocommit = True
+
         # Create a cursor to execure queries
         cursor = conn.cursor()
 
-        # Select the password from the table using the site name
-        # while using parameterized queries to prevent SQL injections
+        # Select the password from the table using the site name while using parameterized queries to prevent SQL injections
         query = '''SELECT password FROM passwords WHERE site_name = %s'''
-        data = (site_name)
-        cursor.execute(query, data)
+        data = (site_name, )
+        cursor.execute(query,data)
 
         # Fetch the password
         password = cursor.fetchone()[0]
@@ -137,17 +131,18 @@ class PasswordManager:
         decrypted_password = self.decrypt(password)
 
         # Confirm the retrival of the password
-        print("Password retrieved successfully !! = %s", decrypted_password)
+        print("Password retrieved successfully !! = {}".format(decrypted_password))
 
         # Close the cursor and the connection to the database
         cursor.close()
         conn.close()
 
-        conn.commit()
-
     def delete_password(self, site_name):
         # Connect to the database
-        conn = psycopg.connect(dbname='passwordmanager',user=db_user, password=db_user, host=db_host, port=db_port)
+        conn = psycopg.connect(dbname='passwordmanager',user=db_user, password=db_password, host=db_host, port=db_port)
+
+        # Set autocommit to True
+        conn.autocommit = True
 
         # Create a cursor to execure queries
         cursor = conn.cursor()
@@ -155,7 +150,7 @@ class PasswordManager:
         # Delete the password from the table 
         # while using parameterized queries to prevent SQL injections
         query = '''DELETE FROM passwords WHERE site_name = %s'''
-        data = (site_name)
+        data = (site_name, )
         cursor.execute(query, data)
 
         # Confirm the deletion of the password
@@ -164,5 +159,3 @@ class PasswordManager:
         # Close the cursor and the connection to the database
         cursor.close()
         conn.close()
-
-        conn.commit()
