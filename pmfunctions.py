@@ -58,7 +58,7 @@ class PasswordManager:
         ciphertext = encryptor.update(plaintext.encode()) + encryptor.finalize()
 
         # Return the initialization vector and the ciphertext
-        return urlsafe_b64encode(iv + ciphertext).decode()
+        return urlsafe_b64encode(iv + ciphertext).decode('utf-8')
     
     def decrypt(self, encrypted_text):
         # Decode the encoded text
@@ -80,7 +80,7 @@ class PasswordManager:
         plaintext = decryptor.update(ciphertext) + decryptor.finalize()
 
         # Decode the plaintext to a string and return it
-        return plaintext.decode()
+        return plaintext.decode('utf-8')
     
     def add_password(self, site_name, username, password):
         # Connect to the database
